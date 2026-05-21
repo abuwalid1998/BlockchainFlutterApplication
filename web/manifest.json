@@ -1,0 +1,12 @@
+{
+  "name": "Blockchain Web Simulator",
+  "short_name": "BlockchainSim",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#4B5EF5",
+  "description": "Flutter web app to simulate blockchain creation and linking between blocks.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
