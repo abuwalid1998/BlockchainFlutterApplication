@@ -12,10 +12,9 @@ class BlockchainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Blockchain Web Simulator',
+      title: 'Blockchain Simulator',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2D4BFF)),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
       ),
       home: const BlockchainPage(),
@@ -32,11 +31,6 @@ class BlockchainPage extends StatefulWidget {
 
 class _BlockchainPageState extends State<BlockchainPage>
     with SingleTickerProviderStateMixin {
-  static const double _blockWidth = 165;
-  static const double _blockHeight = 110;
-  static const double _hGap = 20;
-  static const double _vGap = 50;
-
   final List<BlockModel> _blocks = [];
   late final AnimationController _linkController;
 
@@ -45,7 +39,7 @@ class _BlockchainPageState extends State<BlockchainPage>
     super.initState();
     _linkController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 800),
     );
     _createGenesisBlock();
   }
@@ -60,7 +54,7 @@ class _BlockchainPageState extends State<BlockchainPage>
     final genesis = BlockModel(
       index: 0,
       previousHash: '0',
-      transaction: 'GENESIS',
+      transaction: 'GENESIS BLOCK',
       timestamp: DateTime.now(),
       nonce: 0,
     );
@@ -72,7 +66,7 @@ class _BlockchainPageState extends State<BlockchainPage>
     final sender = _fakeNames[random.nextInt(_fakeNames.length)];
     final receiver = _fakeNames[random.nextInt(_fakeNames.length)];
     final amount = (random.nextDouble() * 5000 + 10).toStringAsFixed(2);
-    final transaction = 'TX: $sender->$receiver | \$$amount';
+    final transaction = 'BANK TX: $sender -> $receiver | \\$$amount';
 
     final previous = _blocks.last;
     final newBlock = BlockModel(
@@ -93,216 +87,125 @@ class _BlockchainPageState extends State<BlockchainPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Blockchain Visual Builder'),
-        centerTitle: true,
+        title: const Text('Blockchain Node Simulator'),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createBankTransactionBlock,
-        icon: const Icon(Icons.account_balance_wallet_outlined),
+        icon: const Icon(Icons.account_balance),
         label: const Text('Create Bank Transaction'),
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final cols = max(
-            1,
-            ((constraints.maxWidth + _hGap) / (_blockWidth + _hGap)).floor(),
-          );
-
-          final positions = <Offset>[];
-          for (var i = 0; i < _blocks.length; i++) {
-            final row = i ~/ cols;
-            final col = i % cols;
-            final x = col * (_blockWidth + _hGap);
-            final y = row * (_blockHeight + _vGap);
-            positions.add(Offset(x, y));
-          }
-
-          final rows = ((_blocks.length - 1) ~/ cols) + 1;
-          final boardHeight = max(
-            constraints.maxHeight,
-            rows * (_blockHeight + _vGap) + 100,
-          ).toDouble();
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            child: SizedBox(
-              width: constraints.maxWidth - 32,
-              height: boardHeight,
-              child: AnimatedBuilder(
-                animation: _linkController,
-                builder: (context, _) {
-                  return Stack(
-                    children: [
-                      CustomPaint(
-                        size: Size(constraints.maxWidth - 32, boardHeight),
-                        painter: FreeRoamArrowPainter(
-                          positions: positions,
-                          blockWidth: _blockWidth,
-                          blockHeight: _blockHeight,
-                          latestProgress: _linkController.value,
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Node Ledger (${_blocks.length} blocks)',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.separated(
+                itemCount: _blocks.length,
+                separatorBuilder: (context, index) {
+                  final isLatestLink = index == _blocks.length - 2;
+                  return SizedBox(
+                    height: 56,
+                    child: AnimatedBuilder(
+                      animation: _linkController,
+                      builder: (context, child) {
+                        final t = isLatestLink ? _linkController.value : 1.0;
+                        return CustomPaint(
+                          painter: LinkPainter(progress: t),
+                          child: child,
+                        );
+                      },
+                      child: Center(
+                        child: Text(
+                          isLatestLink
+                              ? 'Linking new block...'
+                              : 'Linked to next block',
+                          style: TextStyle(
+                            color: isLatestLink
+                                ? Colors.indigo
+                                : Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                      ...List.generate(_blocks.length, (index) {
-                        final p = positions[index];
-                        return Positioned(
-                          left: p.dx,
-                          top: p.dy,
-                          child: BlockCard(
-                            block: _blocks[index],
-                            width: _blockWidth,
-                            height: _blockHeight,
-                          ),
-                        );
-                      }),
-                    ],
+                    ),
                   );
                 },
+                itemBuilder: (context, index) => BlockCard(block: _blocks[index]),
               ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
 }
 
 class BlockCard extends StatelessWidget {
-  const BlockCard({
-    required this.block,
-    required this.width,
-    required this.height,
-    super.key,
-  });
+  const BlockCard({required this.block, super.key});
 
   final BlockModel block;
-  final double width;
-  final double height;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7A8CFF), Color(0xFF2D4BFF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x55000000),
-            blurRadius: 12,
-            offset: Offset(6, 8),
-          ),
-          BoxShadow(
-            color: Color(0x33FFFFFF),
-            blurRadius: 2,
-            offset: Offset(-2, -2),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFB7C1FF), width: 1.2),
-      ),
+    return Card(
+      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Colors.white, fontSize: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'BLOCK ${block.index}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              Text(block.transaction, maxLines: 2, overflow: TextOverflow.ellipsis),
-              const Spacer(),
-              Text('Prev: ${block.previousHash.substring(0, min(6, block.previousHash.length))}...'),
-              Text('Hash: ${block.hash.substring(0, min(6, block.hash.length))}...'),
-            ],
-          ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Block #${block.index}', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text('Transaction: ${block.transaction}'),
+            const SizedBox(height: 6),
+            Text('Previous Hash: ${block.previousHash}'),
+            const SizedBox(height: 6),
+            Text('Current Hash: ${block.hash}'),
+            const SizedBox(height: 6),
+            Text('Timestamp: ${block.timestamp.toIso8601String()}'),
+          ],
         ),
       ),
     );
   }
 }
 
-class FreeRoamArrowPainter extends CustomPainter {
-  FreeRoamArrowPainter({
-    required this.positions,
-    required this.blockWidth,
-    required this.blockHeight,
-    required this.latestProgress,
-  });
+class LinkPainter extends CustomPainter {
+  LinkPainter({required this.progress});
 
-  final List<Offset> positions;
-  final double blockWidth;
-  final double blockHeight;
-  final double latestProgress;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (positions.length < 2) {
-      return;
-    }
-
     final linePaint = Paint()
-      ..color = const Color(0xFF00BFA5)
-      ..strokeWidth = 2.8
+      ..color = Colors.indigo
+      ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    for (var i = 1; i < positions.length; i++) {
-      final startBlock = positions[i - 1];
-      final endBlock = positions[i];
+    final start = Offset(size.width * 0.15, size.height / 2);
+    final end = Offset(size.width * 0.85, size.height / 2);
+    final current = Offset.lerp(start, end, progress) ?? end;
+    canvas.drawLine(start, current, linePaint);
 
-      final start = Offset(startBlock.dx + blockWidth * 0.5, startBlock.dy + blockHeight);
-      final end = Offset(endBlock.dx + blockWidth * 0.5, endBlock.dy);
-
-      final ctrl1 = Offset(start.dx + (end.dx - start.dx) * 0.2, start.dy + 35);
-      final ctrl2 = Offset(end.dx - (end.dx - start.dx) * 0.2, end.dy - 35);
-
-      final fullPath = Path()
-        ..moveTo(start.dx, start.dy)
-        ..cubicTo(ctrl1.dx, ctrl1.dy, ctrl2.dx, ctrl2.dy, end.dx, end.dy);
-
-      if (i == positions.length - 1) {
-        final metric = fullPath.computeMetrics().first;
-        final partial = metric.extractPath(0, metric.length * latestProgress);
-        canvas.drawPath(partial, linePaint);
-
-        if (latestProgress >= 0.98) {
-          _drawArrowHead(canvas, end, ctrl2, linePaint);
-        }
-      } else {
-        canvas.drawPath(fullPath, linePaint);
-        _drawArrowHead(canvas, end, ctrl2, linePaint);
-      }
+    if (progress >= 1) {
+      final arrowPath = Path()
+        ..moveTo(end.dx - 10, end.dy - 6)
+        ..lineTo(end.dx, end.dy)
+        ..lineTo(end.dx - 10, end.dy + 6);
+      canvas.drawPath(arrowPath, linePaint);
     }
   }
 
-  void _drawArrowHead(Canvas canvas, Offset tip, Offset from, Paint linePaint) {
-    final direction = (tip - from);
-    final normalized = direction / direction.distance;
-    final perp = Offset(-normalized.dy, normalized.dx);
-
-    final p1 = tip - normalized * 12 + perp * 6;
-    final p2 = tip - normalized * 12 - perp * 6;
-
-    final arrowPath = Path()
-      ..moveTo(tip.dx, tip.dy)
-      ..lineTo(p1.dx, p1.dy)
-      ..moveTo(tip.dx, tip.dy)
-      ..lineTo(p2.dx, p2.dy);
-
-    canvas.drawPath(arrowPath, linePaint);
-  }
-
   @override
-  bool shouldRepaint(covariant FreeRoamArrowPainter oldDelegate) {
-    return oldDelegate.positions != positions ||
-        oldDelegate.latestProgress != latestProgress;
+  bool shouldRepaint(covariant LinkPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 
